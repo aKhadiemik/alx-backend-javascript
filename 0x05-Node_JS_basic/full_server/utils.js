@@ -1,43 +1,48 @@
-#!/usr/bin/node
-const fs = require('fs');
-let count = 0;
+import fs from 'fs';
 
-function readDatabase (FilePath) {
-  return new Promise((resolve, reject) => {
-    fs.readFile(FilePath, 'utf-8', (err, csvData) => {
+/**
+ * Reads the data of students in a CSV data file.
+ * @param {String} dataPath The path to the CSV data file.
+ * @returns {Promise<{
+ *   String: {firstname: String, lastname: String, age: number}[]
+ * }>}
+ */
+const readDatabase = (dataPath) => new Promise((resolve, reject) => {
+  if (!dataPath) {
+    reject(new Error('Cannot load the database'));
+  }
+  if (dataPath) {
+    fs.readFile(dataPath, (err, data) => {
       if (err) {
         reject(new Error('Cannot load the database'));
-        return;
       }
-      const rows = csvData.split('\n');
-      const headerRow = rows[0].split(',');
-      const fieldIndex = headerRow.indexOf('field');
-      const firstname = 'firstname';
-      const columnIndex = headerRow.indexOf(firstname);
-      if (fieldIndex !== -1) {
-        const csStudents = [];
-        const sweStudents = [];
-        for (let i = 1; i < rows.length; i++) {
-          if (rows[i].length > 0) {
-            count += 1;
-            const row = rows[i].split(',');
-            if (row[fieldIndex] === 'SWE') {
-              sweStudents.push(row[columnIndex]);
-            }
-            if (row[fieldIndex] === 'CS') {
-              csStudents.push(row[columnIndex]);
-            }
+      if (data) {
+        const fileLines = data
+          .toString('utf-8')
+          .trim()
+          .split('\n');
+        const studentGroups = {};
+        const dbFieldNames = fileLines[0].split(',');
+        const studentPropNames = dbFieldNames
+          .slice(0, dbFieldNames.length - 1);
+
+        for (const line of fileLines.slice(1)) {
+          const studentRecord = line.split(',');
+          const studentPropValues = studentRecord
+            .slice(0, studentRecord.length - 1);
+          const field = studentRecord[studentRecord.length - 1];
+          if (!Object.keys(studentGroups).includes(field)) {
+            studentGroups[field] = [];
           }
+          const studentEntries = studentPropNames
+            .map((propName, idx) => [propName, studentPropValues[idx]]);
+          studentGroups[field].push(Object.fromEntries(studentEntries));
         }
-        const result = {
-          csStudentsList: csStudents.join(', '),
-          sweStudentsList: sweStudents.join(', ')
-        };
-        resolve(result);
-        console.log(`${result.csStudentsList}`);
-        console.log(`${result.sweStudentsList}`);
+        resolve(studentGroups);
       }
     });
-  });
-}
+  }
+});
+
+export default readDatabase;
 module.exports = readDatabase;
